@@ -2,11 +2,14 @@
 
 This code is for a basic decentralized application (dApp) that interacts with a smart contract on the Ethereum blockchain. The smart contract has two functions: getMood and setMood.
 
-Here’s a breakdown of the code:
 
 HTML Structure: The HTML part of the code creates a simple user interface with two buttons for getting and setting the mood, and an input field for the user to enter their mood.
+
+
 CSS Styling: The CSS part of the code styles the HTML elements. It centers the text, sets the font, and styles the div and button elements.
-JavaScript: The JavaScript part of the code does the following:
+
+
+JavaScript: The JavaScript part of the code does the following:-
 It includes the ethers.js library, which is a library for interacting with the Ethereum blockchain.
 It defines the address and the ABI (Application Binary Interface) of the MoodContract. The ABI is an array that describes how to interact with the contract’s functions.
 It creates a new instance of the ethers.js library’s Web3Provider object, which allows the dApp to connect to the Ethereum network.
