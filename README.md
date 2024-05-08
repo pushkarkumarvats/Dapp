@@ -1,5 +1,7 @@
 # Dapp
 
+Developed a user-centric decentralized application (dApp) on the Ethereum Sepolia testnet, leveraging HTML, CSS, and JavaScript for frontend development. The dApp interfaces with a Solidity smart contract, providing a unique solution for mood management. Utilized Ethers.js library, MetaMask wallet, Remix IDE, Node.js, and Lite-Server to ensure seamless integration and interaction between the frontend website and the deployed smart contract. This application showcases the potential of blockchain technology in creating secure, decentralized solutions for mental health applications in the industry.
+
 This code is for a basic decentralized application (dApp) that interacts with a smart contract on the Ethereum blockchain. The smart contract has two functions: getMood and setMood.
 
 
