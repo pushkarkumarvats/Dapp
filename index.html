@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>My dApp</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mood dApp</title>
   <style>
     :root {
-      --bg-light: #f2f2f2;
+      --bg-light: #f9f9f9;
       --bg-dark: #121212;
       --text-light: #1a1a1a;
       --text-dark: #e0e0e0;
@@ -20,11 +20,11 @@
       font-family: 'Segoe UI', sans-serif;
       background-color: var(--bg-dark);
       color: var(--text-dark);
-      transition: 0.3s ease;
       display: flex;
       justify-content: center;
       align-items: center;
       min-height: 100vh;
+      transition: 0.3s ease;
     }
 
     .container {
@@ -32,28 +32,28 @@
       padding: 2rem;
       border-radius: 15px;
       width: 90%;
-      max-width: 420px;
+      max-width: 430px;
       text-align: center;
-      box-shadow: 0 0 20px rgba(0, 255, 204, 0.15);
+      box-shadow: 0 0 15px rgba(0, 255, 204, 0.1);
     }
 
     h1 {
-      margin-bottom: 0.5rem;
+      margin-bottom: 1rem;
     }
 
-    .toggle-theme {
-      float: right;
-      margin-top: -10px;
-      cursor: pointer;
+    label {
+      display: block;
+      text-align: left;
+      margin-top: 1rem;
+      margin-bottom: 5px;
     }
 
     input[type="text"] {
       padding: 10px;
       width: 100%;
-      margin-top: 10px;
-      margin-bottom: 1rem;
       border: 1px solid var(--accent);
       border-radius: 8px;
+      margin-bottom: 1rem;
       background-color: #2a2a2a;
       color: var(--text-dark);
     }
@@ -75,8 +75,9 @@
       background-color: #00ccb3;
     }
 
-    #output {
-      margin-top: 1rem;
+    .wallet-status, #output {
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
       font-style: italic;
       color: #a0ffa0;
     }
@@ -86,7 +87,7 @@
       bottom: 20px;
       left: 50%;
       transform: translateX(-50%);
-      background-color: #333;
+      background-color: #444;
       color: white;
       padding: 10px 20px;
       border-radius: 8px;
@@ -94,13 +95,59 @@
       z-index: 999;
     }
 
-    .wallet-status {
-      font-size: 0.9rem;
-      color: #aaa;
+    /* Toggle Switch */
+    .theme-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: end;
       margin-bottom: 10px;
     }
 
-    /* Light Mode */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 46px;
+      height: 24px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      background-color: #888;
+      border-radius: 34px;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      transition: 0.4s;
+    }
+
+    .slider:before {
+      content: "";
+      position: absolute;
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      border-radius: 50%;
+      transition: 0.4s;
+    }
+
+    input:checked + .slider {
+      background-color: var(--accent);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(22px);
+    }
+
     body.light {
       background-color: var(--bg-light);
       color: var(--text-light);
@@ -116,20 +163,36 @@
     }
 
     body.light .toast {
-      background-color: #444;
+      background-color: #222;
+    }
+
+    .info-note {
+      font-size: 0.75rem;
+      color: #ccc;
+      margin-top: -10px;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="toggle-theme" onclick="toggleTheme()">🌓</div>
-    <h1>My dApp</h1>
+    <div class="theme-toggle">
+      <label class="switch">
+        <input type="checkbox" onchange="toggleTheme()" id="themeSwitch" />
+        <span class="slider"></span>
+      </label>
+    </div>
+    <h1>Mood dApp</h1>
     <div class="wallet-status" id="walletStatus">🔌 Connecting wallet...</div>
-    <p>Set or get your mood:</p>
-    <label for="mood">Input Mood:</label>
+
+    <label for="addressInput">Or Enter Address:</label>
+    <input type="text" id="addressInput" placeholder="0xABC..." />
+    <div class="info-note">Manual address used only if wallet not connected</div>
+
+    <label for="mood">Mood:</label>
     <input type="text" id="mood" placeholder="e.g. Happy 😄" />
     <button onclick="getMood()">Get Mood</button>
     <button onclick="setMood()">Set Mood</button>
+
     <div id="output"></div>
   </div>
 
@@ -137,7 +200,7 @@
 
   <script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js"></script>
   <script>
-    const MoodContractAddress = "Your_Contract_Address"; // Replace with actual address
+    const MoodContractAddress = "Your_Contract_Address"; // Replace with your contract address
     const MoodContractABI = [
       {
         inputs: [{ internalType: "string", name: "_mood", type: "string" }],
@@ -155,69 +218,76 @@
       },
     ];
 
-    let provider;
-    let signer;
-    let MoodContract;
-
-    const toast = document.getElementById("toast");
-    const walletStatus = document.getElementById("walletStatus");
+    let provider, signer, MoodContract, connected = false;
 
     async function init() {
-      if (typeof window.ethereum === "undefined") {
-        walletStatus.textContent = "❌ MetaMask not detected!";
-        return;
-      }
-
-      try {
+      if (window.ethereum) {
         provider = new ethers.providers.Web3Provider(window.ethereum, "sepolia");
-        await provider.send("eth_requestAccounts", []);
-        const accounts = await provider.listAccounts();
-        signer = provider.getSigner(accounts[0]);
-        MoodContract = new ethers.Contract(MoodContractAddress, MoodContractABI, signer);
-        walletStatus.textContent = `✅ Wallet Connected: ${accounts[0].slice(0, 6)}...`;
-      } catch (err) {
-        walletStatus.textContent = "❌ Wallet connection failed!";
-        console.error(err);
+        try {
+          await provider.send("eth_requestAccounts", []);
+          const accounts = await provider.listAccounts();
+          signer = provider.getSigner(accounts[0]);
+          MoodContract = new ethers.Contract(MoodContractAddress, MoodContractABI, signer);
+          connected = true;
+          document.getElementById("walletStatus").textContent = `✅ Wallet Connected: ${accounts[0].slice(0, 6)}...`;
+        } catch {
+          connected = false;
+          document.getElementById("walletStatus").textContent = "⚠️ Wallet not connected. Using manual address.";
+        }
+      } else {
+        document.getElementById("walletStatus").textContent = "❌ MetaMask not detected.";
       }
     }
 
-    function showToast(msg) {
-      toast.textContent = msg;
-      toast.style.display = "block";
-      setTimeout(() => (toast.style.display = "none"), 3000);
+    function getReadOnlyContract() {
+      const address = document.getElementById("addressInput").value.trim();
+      if (!ethers.utils.isAddress(address)) {
+        showToast("Invalid address!");
+        return null;
+      }
+      const readOnlyProvider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/YOUR_INFURA_ID");
+      return new ethers.Contract(MoodContractAddress, MoodContractABI, readOnlyProvider.getSigner(address));
     }
 
     async function getMood() {
       try {
-        const mood = await MoodContract.getMood();
+        const contract = connected ? MoodContract : getReadOnlyContract();
+        if (!contract) return;
+        const mood = await contract.getMood();
         document.getElementById("output").textContent = `Current Mood: ${mood}`;
         showToast("Mood fetched!");
       } catch (err) {
-        showToast("Error getting mood!");
+        showToast("Error fetching mood");
         console.error(err);
       }
     }
 
     async function setMood() {
       const mood = document.getElementById("mood").value.trim();
-      if (!mood) {
-        showToast("Please enter a mood!");
-        return;
+      if (!mood) return showToast("Please enter a mood!");
+
+      if (!connected) {
+        return showToast("Connect wallet to set mood!");
       }
 
       try {
-        const estimatedGas = await MoodContract.estimateGas.setMood(mood);
-        showToast("Estimated gas: " + estimatedGas.toString());
-
+        const gas = await MoodContract.estimateGas.setMood(mood);
+        showToast("Estimated Gas: " + gas.toString());
         const tx = await MoodContract.setMood(mood);
         await tx.wait();
-
+        document.getElementById("output").textContent = `Mood set to "${mood}"!`;
         showToast("Mood set successfully!");
-        document.getElementById("output").textContent = `Mood set to "${mood}"`;
       } catch (err) {
-        showToast("Error setting mood!");
+        showToast("Transaction failed.");
         console.error(err);
       }
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById("toast");
+      toast.textContent = msg;
+      toast.style.display = "block";
+      setTimeout(() => (toast.style.display = "none"), 3000);
     }
 
     function toggleTheme() {
