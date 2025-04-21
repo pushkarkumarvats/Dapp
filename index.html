@@ -1,92 +1,230 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>My First dApp</title>
-<style>
-body {
-text-align: center;
-font-family: Arial, Helvetica, sans-serif;
-}
-div {
-    width: 20%;
-margin: 0 auto;
-display: flex;
-flex-direction: column;
-}
-button {
-width: 100%;
-margin: 10px 0px 5px 0px;
-}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My dApp</title>
+  <style>
+    :root {
+      --bg-light: #f2f2f2;
+      --bg-dark: #121212;
+      --text-light: #1a1a1a;
+      --text-dark: #e0e0e0;
+      --accent: #00ffcc;
+      --card-light: #ffffff;
+      --card-dark: #1e1e1e;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-dark);
+      transition: 0.3s ease;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      background-color: var(--card-dark);
+      padding: 2rem;
+      border-radius: 15px;
+      width: 90%;
+      max-width: 420px;
+      text-align: center;
+      box-shadow: 0 0 20px rgba(0, 255, 204, 0.15);
+    }
+
+    h1 {
+      margin-bottom: 0.5rem;
+    }
+
+    .toggle-theme {
+      float: right;
+      margin-top: -10px;
+      cursor: pointer;
+    }
+
+    input[type="text"] {
+      padding: 10px;
+      width: 100%;
+      margin-top: 10px;
+      margin-bottom: 1rem;
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      background-color: #2a2a2a;
+      color: var(--text-dark);
+    }
+
+    button {
+      background-color: var(--accent);
+      border: none;
+      padding: 10px;
+      width: 100%;
+      margin: 0.5rem 0;
+      border-radius: 8px;
+      font-weight: bold;
+      color: #000;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #00ccb3;
+    }
+
+    #output {
+      margin-top: 1rem;
+      font-style: italic;
+      color: #a0ffa0;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #333;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 8px;
+      display: none;
+      z-index: 999;
+    }
+
+    .wallet-status {
+      font-size: 0.9rem;
+      color: #aaa;
+      margin-bottom: 10px;
+    }
+
+    /* Light Mode */
+    body.light {
+      background-color: var(--bg-light);
+      color: var(--text-light);
+    }
+
+    body.light .container {
+      background-color: var(--card-light);
+    }
+
+    body.light input {
+      background-color: #fff;
+      color: #000;
+    }
+
+    body.light .toast {
+      background-color: #444;
+    }
+  </style>
 </head>
 <body>
-<div>
-<h1>This is my DApp!</h1>
-<p>Here we can set or get the mood:</p>
-<label for="mood">Input Mood:</label>
-<input type="text" id="mood" />
-<button onclick="getMood()">Get Mood</button>
-<button onclick="setMood()">Set Mood</button>
-</div>
-<script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js"
-type="application/javascript"></script>
-<script>
-    const MoodContractAddress = "Your Contract Address";
-    MoodContractABI = [
-    {
-    "inputs": [
-    {
-    "internalType": "string",
-    "name": "_mood",
-    "type": "string"
+  <div class="container">
+    <div class="toggle-theme" onclick="toggleTheme()">🌓</div>
+    <h1>My dApp</h1>
+    <div class="wallet-status" id="walletStatus">🔌 Connecting wallet...</div>
+    <p>Set or get your mood:</p>
+    <label for="mood">Input Mood:</label>
+    <input type="text" id="mood" placeholder="e.g. Happy 😄" />
+    <button onclick="getMood()">Get Mood</button>
+    <button onclick="setMood()">Set Mood</button>
+    <div id="output"></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js"></script>
+  <script>
+    const MoodContractAddress = "Your_Contract_Address"; // Replace with actual address
+    const MoodContractABI = [
+      {
+        inputs: [{ internalType: "string", name: "_mood", type: "string" }],
+        name: "setMood",
+        outputs: [],
+        stateMutability: "nonpayable",
+        type: "function",
+      },
+      {
+        inputs: [],
+        name: "getMood",
+        outputs: [{ internalType: "string", name: "", type: "string" }],
+        stateMutability: "view",
+        type: "function",
+      },
+    ];
+
+    let provider;
+    let signer;
+    let MoodContract;
+
+    const toast = document.getElementById("toast");
+    const walletStatus = document.getElementById("walletStatus");
+
+    async function init() {
+      if (typeof window.ethereum === "undefined") {
+        walletStatus.textContent = "❌ MetaMask not detected!";
+        return;
+      }
+
+      try {
+        provider = new ethers.providers.Web3Provider(window.ethereum, "sepolia");
+        await provider.send("eth_requestAccounts", []);
+        const accounts = await provider.listAccounts();
+        signer = provider.getSigner(accounts[0]);
+        MoodContract = new ethers.Contract(MoodContractAddress, MoodContractABI, signer);
+        walletStatus.textContent = `✅ Wallet Connected: ${accounts[0].slice(0, 6)}...`;
+      } catch (err) {
+        walletStatus.textContent = "❌ Wallet connection failed!";
+        console.error(err);
+      }
     }
-    ],
-    "name": "setMood",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-    },
-    {
-    "inputs": [],
-    "name": "getMood",
-    "outputs": [
-    {
-    "internalType": "string",
-    "name": "",
-    "type": "string"
+
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.style.display = "block";
+      setTimeout(() => (toast.style.display = "none"), 3000);
     }
-    ],
-"stateMutability": "view",
-"type": "function"
-}
-]
-let MoodContract;
-let signer
-const provider = new ethers.providers.Web3Provider(window.ethereum,
-"sepolia");
-provider.send("eth_requestAccounts", []).then(() => {
-provider.listAccounts().then((accounts) => {
-signer = provider.getSigner(accounts[0]);
-MoodContract = new ethers.Contract(
-MoodContractAddress,
-MoodContractABI,
-signer
-);
-});
-});
-async function getMood() {
-const getMoodPromise = MoodContract.getMood();
-const Mood = await getMoodPromise;
-console.log(Mood);
-}
-async function setMood() {
-const mood = document.getElementById("mood").value;
-const setMoodPromise = MoodContract.setMood(mood);
-await setMoodPromise;
-}
-</script>
+
+    async function getMood() {
+      try {
+        const mood = await MoodContract.getMood();
+        document.getElementById("output").textContent = `Current Mood: ${mood}`;
+        showToast("Mood fetched!");
+      } catch (err) {
+        showToast("Error getting mood!");
+        console.error(err);
+      }
+    }
+
+    async function setMood() {
+      const mood = document.getElementById("mood").value.trim();
+      if (!mood) {
+        showToast("Please enter a mood!");
+        return;
+      }
+
+      try {
+        const estimatedGas = await MoodContract.estimateGas.setMood(mood);
+        showToast("Estimated gas: " + estimatedGas.toString());
+
+        const tx = await MoodContract.setMood(mood);
+        await tx.wait();
+
+        showToast("Mood set successfully!");
+        document.getElementById("output").textContent = `Mood set to "${mood}"`;
+      } catch (err) {
+        showToast("Error setting mood!");
+        console.error(err);
+      }
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle("light");
+    }
+
+    init();
+  </script>
 </body>
 </html>
